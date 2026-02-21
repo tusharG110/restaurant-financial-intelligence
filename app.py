@@ -4,76 +4,56 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
     page_title="Restaurant Financial Intelligence",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
 # ================= LOAD DATA =================
 df = pd.read_csv("final_complete_restaurant_dataset.csv")
 df["Date"] = pd.to_datetime(df["Date"])
 
-# ================= THEME STATE =================
-if "theme" not in st.session_state:
-    st.session_state.theme = "Dark"
-
-def toggle_theme():
-    st.session_state.theme = (
-        "Light" if st.session_state.theme == "Dark" else "Dark"
-    )
-
-col1, col2 = st.columns([10,1])
-with col2:
-    st.button("🌗", on_click=toggle_theme)
-
-if st.session_state.theme == "Dark":
-    bg_color = "#0E1117"
-    card_bg = "#161A23"
-    border_color = "#2A2F3A"
-    text_color = "#FFFFFF"
-    plotly_template = "plotly_dark"
-else:
-    bg_color = "#F4F6F9"
-    card_bg = "#FFFFFF"
-    border_color = "#E0E0E0"
-    text_color = "#000000"
-    plotly_template = "plotly"
-
-# ================= UI CSS =================
-st.markdown(f"""
+# ================= GLOBAL STYLING =================
+st.markdown("""
 <style>
-.stApp {{
-    background-color: {bg_color};
-}}
+.stApp {
+    background-color: #0E1117;
+    color: white;
+}
 
-.kpi-card {{
-    background-color: {card_bg};
+.block-container {
+    border: 1px solid #2A2F3A;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-top: 1rem;
+}
+
+.section-card {
+    background-color: #161A23;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #2A2F3A;
+    margin-top: 20px;
+}
+
+.kpi-card {
+    background-color: #161A23;
     padding: 25px;
     border-radius: 15px;
-    border: 1px solid {border_color};
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #2A2F3A;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     transition: 0.3s;
-}}
-.kpi-card:hover {{
+}
+.kpi-card:hover {
     transform: translateY(-5px);
-}}
+}
 
-.section-card {{
-    background-color: {card_bg};
-    padding: 20px;
-    border-radius: 15px;
-    border: 1px solid {border_color};
-    margin-top: 20px;
-}}
-
-h1,h2,h3,h4,h5,h6 {{
-    color: {text_color};
-}}
+h1,h2,h3,h4,h5,h6 {
+    color: white;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,27 +78,12 @@ if page == "Executive Overview":
     net_profit = df["Net_Profit_After_Expense"].sum()
     avg_margin = df["Net_Profit_Margin_%"].mean()
 
-    # Growth Calculation
-    monthly = df.groupby(df["Date"].dt.to_period("M"))[
-        ["Revenue_Generated","Net_Profit_After_Expense"]
-    ].sum()
-
-    if len(monthly) > 1:
-        revenue_growth = ((monthly.iloc[-1,0] - monthly.iloc[-2,0]) /
-                           monthly.iloc[-2,0]) * 100
-        profit_growth = ((monthly.iloc[-1,1] - monthly.iloc[-2,1]) /
-                          monthly.iloc[-2,1]) * 100
-    else:
-        revenue_growth = 0
-        profit_growth = 0
-
     col1, col2, col3, col4 = st.columns(4)
 
     col1.markdown(f"""
     <div class="kpi-card">
         <h4>Total Revenue</h4>
         <h2>₹{total_revenue:,.0f}</h2>
-        <p>Growth: {revenue_growth:.2f}%</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -133,7 +98,6 @@ if page == "Executive Overview":
     <div class="kpi-card">
         <h4>Net Profit</h4>
         <h2>₹{net_profit:,.0f}</h2>
-        <p>Growth: {profit_growth:.2f}%</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -144,50 +108,64 @@ if page == "Executive Overview":
     </div>
     """, unsafe_allow_html=True)
 
-    # Gauge Chart
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=avg_margin,
-        title={'text': "Profitability Score"},
-        gauge={'axis': {'range': [0,100]}}
-    ))
-    fig.update_layout(template=plotly_template)
-    st.plotly_chart(fig, use_container_width=True)
+    # ================= AI INSIGHT GENERATOR =================
+    revenue_by_product = df.groupby("Product_Name")["Revenue_Generated"].sum()
+    top_product = revenue_by_product.idxmax()
+    top_value = revenue_by_product.max()
 
-    # Executive Insight
     insight = f"""
-    Revenue grew {revenue_growth:.2f}% last month.
-    Profit margin currently stands at {avg_margin:.2f}%.
+    🔍 AI Strategic Insight:
+
+    • {top_product} is the highest revenue contributor (₹{top_value:,.0f}).  
+    • Current profit margin stands at {avg_margin:.2f}%.  
+    • Total operational expense accounts for {(total_expense/total_revenue)*100:.2f}% of revenue.  
     """
+
     st.markdown(f'<div class="section-card">{insight}</div>', unsafe_allow_html=True)
 
 # ================= KPI DASHBOARD =================
 elif page == "KPI Dashboard":
 
     daily = df.groupby("Date")["Revenue_Generated"].sum().reset_index()
+    daily["Month"] = daily["Date"].dt.month
 
     # Moving Average
     daily["MA_7"] = daily["Revenue_Generated"].rolling(7).mean()
 
     fig = px.line(daily, x="Date",
-                  y=["Revenue_Generated","MA_7"],
-                  title="Daily Revenue & 7-Day Moving Avg")
-    fig.update_layout(template=plotly_template)
+                  y=["Revenue_Generated", "MA_7"],
+                  title="Daily Revenue & 7-Day Moving Average",
+                  template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
     # Cumulative Revenue
     daily["Cumulative"] = daily["Revenue_Generated"].cumsum()
     fig2 = px.line(daily, x="Date",
                    y="Cumulative",
-                   title="Cumulative Revenue")
-    fig2.update_layout(template=plotly_template)
+                   title="Cumulative Revenue Growth",
+                   template="plotly_dark")
     st.plotly_chart(fig2, use_container_width=True)
 
-    best_day = daily.loc[daily["Revenue_Generated"].idxmax()]
-    worst_day = daily.loc[daily["Revenue_Generated"].idxmin()]
+    # ================= SEASONAL HEATMAP =================
+    heatmap_data = df.copy()
+    heatmap_data["Month"] = heatmap_data["Date"].dt.month
+    heatmap_data["Weekday"] = heatmap_data["Date"].dt.day_name()
 
-    st.success(f"Peak Revenue Day: {best_day['Date'].date()} (₹{best_day['Revenue_Generated']:,.0f})")
-    st.error(f"Worst Revenue Day: {worst_day['Date'].date()} (₹{worst_day['Revenue_Generated']:,.0f})")
+    pivot = heatmap_data.pivot_table(
+        values="Revenue_Generated",
+        index="Weekday",
+        columns="Month",
+        aggfunc="sum"
+    )
+
+    fig3 = px.imshow(
+        pivot,
+        title="Seasonal Revenue Heatmap (Weekday vs Month)",
+        template="plotly_dark",
+        aspect="auto"
+    )
+
+    st.plotly_chart(fig3, use_container_width=True)
 
 # ================= PRODUCT ANALYTICS =================
 elif page == "Product Analytics":
@@ -196,44 +174,32 @@ elif page == "Product Analytics":
         ["Revenue_Generated","Net_Profit_After_Expense"]
     ].sum().reset_index()
 
-    product_summary["Margin_%"] = (
-        product_summary["Net_Profit_After_Expense"] /
-        product_summary["Revenue_Generated"] * 100
-    )
+    # ABC Classification
+    product_summary = product_summary.sort_values(
+        by="Revenue_Generated", ascending=False)
+    product_summary["Cumulative_%"] = (
+        product_summary["Revenue_Generated"].cumsum() /
+        product_summary["Revenue_Generated"].sum()) * 100
+
+    def classify(x):
+        if x <= 70:
+            return "A"
+        elif x <= 90:
+            return "B"
+        else:
+            return "C"
+
+    product_summary["Class"] = product_summary["Cumulative_%"].apply(classify)
 
     fig = px.bar(product_summary,
                  x="Product_Name",
-                 y="Net_Profit_After_Expense",
-                 title="Net Profit by Product")
-    fig.update_layout(template=plotly_template)
+                 y="Revenue_Generated",
+                 color="Class",
+                 title="Revenue by Product with ABC Classification",
+                 template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Revenue Contribution
-    fig2 = px.pie(product_summary,
-                  names="Product_Name",
-                  values="Revenue_Generated",
-                  title="Revenue Contribution")
-    fig2.update_layout(template=plotly_template)
-    st.plotly_chart(fig2, use_container_width=True)
-
-    # Margin Chart
-    fig3 = px.bar(product_summary,
-                  x="Product_Name",
-                  y="Margin_%",
-                  title="Profit Margin by Product")
-    fig3.update_layout(template=plotly_template)
-    st.plotly_chart(fig3, use_container_width=True)
-
-    top3 = product_summary.sort_values(
-        by="Net_Profit_After_Expense",
-        ascending=False).head(3)
-
-    bottom3 = product_summary.sort_values(
-        by="Net_Profit_After_Expense").head(3)
-
-    c1, c2 = st.columns(2)
-    c1.dataframe(top3, use_container_width=True)
-    c2.dataframe(bottom3, use_container_width=True)
+    st.dataframe(product_summary, use_container_width=True)
 
 # ================= FORECASTING =================
 elif page == "Forecasting":
@@ -244,25 +210,53 @@ elif page == "Forecasting":
     model = LinearRegression()
     model.fit(daily[["Date_Ordinal"]], daily["Revenue_Generated"])
 
-    predictions_train = model.predict(daily[["Date_Ordinal"]])
-    r2 = r2_score(daily["Revenue_Generated"], predictions_train)
-
-    future_dates = pd.date_range(daily["Date"].max(), periods=8)[1:]
+    future_dates = pd.date_range(daily["Date"].max(), periods=15)[1:]
     future_ord = future_dates.map(pd.Timestamp.toordinal)
+
     predictions = model.predict(np.array(future_ord).reshape(-1,1))
 
+    # Confidence Interval
+    residuals = daily["Revenue_Generated"] - \
+                model.predict(daily[["Date_Ordinal"]])
+    std_dev = np.std(residuals)
+
+    upper = predictions + 1.96 * std_dev
+    lower = predictions - 1.96 * std_dev
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=daily["Date"],
-                             y=daily["Revenue_Generated"],
-                             name="Actual"))
-    fig.add_trace(go.Scatter(x=future_dates,
-                             y=predictions,
-                             name="Forecast"))
 
-    fig.update_layout(template=plotly_template)
+    fig.add_trace(go.Scatter(
+        x=daily["Date"],
+        y=daily["Revenue_Generated"],
+        name="Actual"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=predictions,
+        name="Forecast"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=upper,
+        line=dict(width=0),
+        showlegend=False
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=lower,
+        fill='tonexty',
+        name="Confidence Interval"
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        title="Revenue Forecast with Confidence Interval"
+    )
+
     st.plotly_chart(fig, use_container_width=True)
-
-    st.info(f"Model Accuracy (R² Score): {r2:.4f}")
 
 # ================= SCENARIO SIMULATOR =================
 elif page == "Scenario Simulator":
@@ -272,8 +266,8 @@ elif page == "Scenario Simulator":
 
     adjusted_revenue = df["Revenue_Generated"] * (1 + revenue_growth/100)
     adjusted_expense = df["Expense_Allocated"] * (1 + expense_growth/100)
-
     adjusted_profit = adjusted_revenue - adjusted_expense
+
     new_margin = (adjusted_profit.sum() /
                   adjusted_revenue.sum()) * 100
 
@@ -282,8 +276,8 @@ elif page == "Scenario Simulator":
     st.metric("Projected Margin",
               f"{new_margin:.2f}%")
 
-    break_even_revenue = adjusted_expense.sum()
-    st.warning(f"Break-even Revenue Required: ₹{break_even_revenue:,.0f}")
+    break_even = adjusted_expense.sum()
+    st.warning(f"Break-even Revenue Required: ₹{break_even:,.0f}")
 
 st.divider()
 st.download_button(
