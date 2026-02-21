@@ -33,40 +33,78 @@ with col_right:
 # ================= THEME SETTINGS =================
 if st.session_state.theme == "Dark":
     bg_color = "#0E1117"
+    card_bg = "#161A23"
+    border_color = "#2A2F3A"
     text_color = "#FFFFFF"
     plotly_template = "plotly_dark"
 else:
-    bg_color = "#FFFFFF"
+    bg_color = "#F8F9FA"
+    card_bg = "#FFFFFF"
+    border_color = "#E0E0E0"
     text_color = "#000000"
     plotly_template = "plotly"
 
-# Apply clean CSS override
+# ================= PREMIUM STYLING =================
 st.markdown(
     f"""
     <style>
     .stApp {{
         background-color: {bg_color};
+        transition: all 0.4s ease-in-out;
+    }}
+
+    /* Fade animation */
+    .block-container {{
+        animation: fadeIn 0.6s ease-in-out;
+    }}
+
+    @keyframes fadeIn {{
+        from {{ opacity: 0; transform: translateY(10px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
     }}
 
     h1, h2, h3, h4, h5, h6 {{
         color: {text_color};
     }}
 
-    .stMarkdown, p, span, label {{
-        color: {text_color};
-    }}
-
-    div[data-testid="stMetricLabel"] {{
-        color: {text_color};
-    }}
-
-    div[data-testid="stMetricValue"] {{
-        color: {text_color};
-    }}
-
     div[role="radiogroup"] label {{
         color: {text_color};
     }}
+
+    /* Premium KPI Card */
+    .kpi-card {{
+        background-color: {card_bg};
+        padding: 25px;
+        border-radius: 15px;
+        border: 1px solid {border_color};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: 0.3s;
+    }}
+
+    .kpi-card:hover {{
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }}
+
+    .kpi-title {{
+        font-size: 16px;
+        opacity: 0.7;
+    }}
+
+    .kpi-value {{
+        font-size: 28px;
+        font-weight: bold;
+        margin-top: 5px;
+    }}
+
+    .section-card {{
+        background-color: {card_bg};
+        padding: 25px;
+        border-radius: 15px;
+        border: 1px solid {border_color};
+        margin-top: 20px;
+    }}
+
     </style>
     """,
     unsafe_allow_html=True
@@ -99,19 +137,48 @@ if page == "Executive Overview":
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Total Revenue", f"₹{total_revenue:,.0f}")
-    col2.metric("Total Expense", f"₹{total_expense:,.0f}")
-    col3.metric("Net Profit", f"₹{net_profit:,.0f}")
-    col4.metric("Avg Net Margin", f"{avg_margin:.2f}%")
+    col1.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">Total Revenue</div>
+            <div class="kpi-value">₹{total_revenue:,.0f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col2.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">Total Expense</div>
+            <div class="kpi-value">₹{total_expense:,.0f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col3.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">Net Profit</div>
+            <div class="kpi-value">₹{net_profit:,.0f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col4.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">Avg Net Margin</div>
+            <div class="kpi-value">{avg_margin:.2f}%</div>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("### 📌 Strategic Insight")
 
     if avg_margin > 45:
-        st.success("Business is highly profitable and financially strong.")
+        insight = "Business is highly profitable and financially strong."
     elif avg_margin > 30:
-        st.warning("Margins are stable. Cost optimization recommended.")
+        insight = "Margins are stable. Cost optimization recommended."
     else:
-        st.error("Profitability risk detected. Immediate action required.")
+        insight = "Profitability risk detected. Immediate action required."
+
+    st.markdown(f"""
+        <div class="section-card">
+            {insight}
+        </div>
+    """, unsafe_allow_html=True)
 
 # ================= KPI DASHBOARD =================
 elif page == "KPI Dashboard":
@@ -155,23 +222,6 @@ elif page == "Product Analytics":
     fig.update_layout(template=plotly_template)
     st.plotly_chart(fig, use_container_width=True)
 
-    top3 = product_summary.sort_values(
-        by="Net_Profit_After_Expense",
-        ascending=False
-    ).head(3)
-
-    bottom3 = product_summary.sort_values(
-        by="Net_Profit_After_Expense"
-    ).head(3)
-
-    col1, col2 = st.columns(2)
-
-    col1.subheader("🏆 Top 3 Products")
-    col1.dataframe(top3, use_container_width=True)
-
-    col2.subheader("⚠ Bottom 3 Products")
-    col2.dataframe(bottom3, use_container_width=True)
-
 # ================= FORECASTING =================
 elif page == "Forecasting":
 
@@ -209,10 +259,7 @@ elif page == "Forecasting":
 # ================= SCENARIO SIMULATOR =================
 elif page == "Scenario Simulator":
 
-    cost_increase = st.slider(
-        "Increase Expenses (%)",
-        0, 50, 10
-    )
+    cost_increase = st.slider("Increase Expenses (%)", 0, 50, 10)
 
     adjusted_expense = df["Expense_Allocated"] * (
         1 + cost_increase / 100
@@ -220,18 +267,14 @@ elif page == "Scenario Simulator":
 
     adjusted_profit = df["Revenue_Generated"] - adjusted_expense
 
-    st.metric(
-        "Projected Net Profit",
-        f"₹{adjusted_profit.sum():,.0f}"
-    )
+    st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">Projected Net Profit</div>
+            <div class="kpi-value">₹{adjusted_profit.sum():,.0f}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.info(
-        "Use this tool to simulate cost changes and evaluate resilience."
-    )
-
-# ================= DOWNLOAD BUTTON =================
 st.divider()
-
 st.download_button(
     "⬇ Download Full Dataset",
     df.to_csv(index=False),
