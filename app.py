@@ -16,32 +16,42 @@ st.set_page_config(
 df = pd.read_csv("final_complete_restaurant_dataset.csv")
 df["Date"] = pd.to_datetime(df["Date"])
 
-# ================= THEME TOGGLE =================
-theme = st.radio(
-    "Theme",
-    ["Dark", "Light"],
-    horizontal=True
-)
+# ================= THEME STATE =================
+if "theme" not in st.session_state:
+    st.session_state.theme = "Dark"
 
-if theme == "Light":
-    st.markdown("""
-        <style>
-        .stApp {
-            background-color: white;
-            color: black;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+def toggle_theme():
+    if st.session_state.theme == "Dark":
+        st.session_state.theme = "Light"
+    else:
+        st.session_state.theme = "Dark"
 
+# ================= THEME BUTTON =================
+col1, col2 = st.columns([9,1])
+with col2:
+    st.button("🌗", on_click=toggle_theme)
+
+# ================= APPLY THEME =================
+if st.session_state.theme == "Dark":
+    background = "#0E1117"
+    text_color = "white"
+    plotly_template = "plotly_dark"
 else:
-    st.markdown("""
-        <style>
-        .stApp {
-            background-color: #0E1117;
-            color: white;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    background = "white"
+    text_color = "black"
+    plotly_template = "plotly"
+
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-color: {background};
+        color: {text_color};
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # ================= NAVBAR =================
 st.markdown("## 📊 Restaurant Financial Intelligence Platform")
@@ -72,12 +82,12 @@ if page == "Executive Overview":
 
     st.markdown("### 📌 Strategic Insight")
 
-    if avg_margin > 40:
-        st.success("Margins are strong and healthy.")
+    if avg_margin > 45:
+        st.success("Business is highly profitable and financially strong.")
     elif avg_margin > 30:
-        st.warning("Margins are moderate. Cost optimization advised.")
+        st.warning("Margins are stable. Cost optimization can improve profitability.")
     else:
-        st.error("Margins are weak. Immediate pricing or cost action required.")
+        st.error("Profitability risk detected. Immediate pricing or cost control required.")
 
 # ================= KPI DASHBOARD =================
 elif page == "KPI Dashboard":
@@ -88,13 +98,16 @@ elif page == "KPI Dashboard":
 
     monthly["Date"] = monthly["Date"].astype(str)
 
-    fig = px.line(monthly,
-                  x="Date",
-                  y=["Revenue_Generated",
-                     "Expense_Allocated",
-                     "Net_Profit_After_Expense"],
-                  title="Monthly Financial Trend")
+    fig = px.line(
+        monthly,
+        x="Date",
+        y=["Revenue_Generated",
+           "Expense_Allocated",
+           "Net_Profit_After_Expense"],
+        title="Monthly Financial Trend"
+    )
 
+    fig.update_layout(template=plotly_template)
     st.plotly_chart(fig, use_container_width=True)
 
 # ================= PRODUCT ANALYTICS =================
@@ -104,11 +117,14 @@ elif page == "Product Analytics":
         "Net_Profit_After_Expense"
     ].sum().reset_index()
 
-    fig = px.bar(product_summary,
-                 x="Product_Name",
-                 y="Net_Profit_After_Expense",
-                 title="Net Profit by Product")
+    fig = px.bar(
+        product_summary,
+        x="Product_Name",
+        y="Net_Profit_After_Expense",
+        title="Net Profit by Product"
+    )
 
+    fig.update_layout(template=plotly_template)
     st.plotly_chart(fig, use_container_width=True)
 
     top3 = product_summary.sort_values(
@@ -120,7 +136,10 @@ elif page == "Product Analytics":
     ).head(3)
 
     col1, col2 = st.columns(2)
+    col1.subheader("🏆 Top 3 Products")
     col1.dataframe(top3, use_container_width=True)
+
+    col2.subheader("⚠ Bottom 3 Products")
     col2.dataframe(bottom3, use_container_width=True)
 
 # ================= FORECASTING =================
@@ -154,6 +173,7 @@ elif page == "Forecasting":
         name="Forecast"
     ))
 
+    fig.update_layout(template=plotly_template)
     st.plotly_chart(fig, use_container_width=True)
 
 # ================= SCENARIO SIMULATOR =================
@@ -166,12 +186,15 @@ elif page == "Scenario Simulator":
     adjusted_expense = df["Expense_Allocated"] * (
         1 + cost_increase / 100
     )
+
     adjusted_profit = df["Revenue_Generated"] - adjusted_expense
 
     st.metric(
         "Projected Net Profit",
         f"₹{adjusted_profit.sum():,.0f}"
     )
+
+    st.info("Use this tool to simulate cost shocks and test financial resilience.")
 
 # ================= DOWNLOAD REPORT =================
 st.divider()
