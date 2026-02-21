@@ -44,7 +44,7 @@ else:
     text_color = "#000000"
     plotly_template = "plotly"
 
-# ================= PREMIUM STYLING =================
+# ================= PREMIUM UI CSS =================
 st.markdown(
     f"""
     <style>
@@ -53,7 +53,6 @@ st.markdown(
         transition: all 0.4s ease-in-out;
     }}
 
-    /* Fade animation */
     .block-container {{
         animation: fadeIn 0.6s ease-in-out;
     }}
@@ -71,7 +70,6 @@ st.markdown(
         color: {text_color};
     }}
 
-    /* Premium KPI Card */
     .kpi-card {{
         background-color: {card_bg};
         padding: 25px;
@@ -82,12 +80,12 @@ st.markdown(
     }}
 
     .kpi-card:hover {{
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.12);
     }}
 
     .kpi-title {{
-        font-size: 16px;
+        font-size: 15px;
         opacity: 0.7;
     }}
 
@@ -99,7 +97,7 @@ st.markdown(
 
     .section-card {{
         background-color: {card_bg};
-        padding: 25px;
+        padding: 20px;
         border-radius: 15px;
         border: 1px solid {border_color};
         margin-top: 20px;
@@ -209,18 +207,38 @@ elif page == "KPI Dashboard":
 elif page == "Product Analytics":
 
     product_summary = df.groupby("Product_Name")[
-        "Net_Profit_After_Expense"
+        ["Revenue_Generated", "Net_Profit_After_Expense"]
     ].sum().reset_index()
 
     fig = px.bar(
         product_summary,
         x="Product_Name",
         y="Net_Profit_After_Expense",
-        title="Net Profit by Product"
+        title="Net Profit by Product",
+        text_auto=True
     )
 
     fig.update_layout(template=plotly_template)
     st.plotly_chart(fig, use_container_width=True)
+
+    top3 = product_summary.sort_values(
+        by="Net_Profit_After_Expense",
+        ascending=False
+    ).head(3)
+
+    bottom3 = product_summary.sort_values(
+        by="Net_Profit_After_Expense"
+    ).head(3)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown('<div class="section-card"><h4>🏆 Top 3 Performing Products</h4></div>', unsafe_allow_html=True)
+        st.dataframe(top3, use_container_width=True)
+
+    with col2:
+        st.markdown('<div class="section-card"><h4>⚠ Bottom 3 Performing Products</h4></div>', unsafe_allow_html=True)
+        st.dataframe(bottom3, use_container_width=True)
 
 # ================= FORECASTING =================
 elif page == "Forecasting":
@@ -231,10 +249,7 @@ elif page == "Forecasting":
     model = LinearRegression()
     model.fit(daily[["Date_Ordinal"]], daily["Revenue_Generated"])
 
-    future_dates = pd.date_range(
-        daily["Date"].max(), periods=8
-    )[1:]
-
+    future_dates = pd.date_range(daily["Date"].max(), periods=8)[1:]
     future_df = pd.DataFrame({
         "Date_Ordinal": future_dates.map(pd.Timestamp.toordinal)
     })
@@ -264,7 +279,6 @@ elif page == "Scenario Simulator":
     adjusted_expense = df["Expense_Allocated"] * (
         1 + cost_increase / 100
     )
-
     adjusted_profit = df["Revenue_Generated"] - adjusted_expense
 
     st.markdown(f"""
