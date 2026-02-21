@@ -17,17 +17,31 @@ df = pd.read_csv("final_complete_restaurant_dataset.csv")
 df["Date"] = pd.to_datetime(df["Date"])
 
 # ================= THEME TOGGLE =================
-theme = st.toggle("🌗 Dark Mode", value=True)
+theme = st.radio(
+    "Theme",
+    ["Dark", "Light"],
+    horizontal=True
+)
 
-if not theme:
-    st.markdown(
-        """
+if theme == "Light":
+    st.markdown("""
         <style>
-        body {background-color: white; color: black;}
+        .stApp {
+            background-color: white;
+            color: black;
+        }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
+
+else:
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0E1117;
+            color: white;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 # ================= NAVBAR =================
 st.markdown("## 📊 Restaurant Financial Intelligence Platform")
