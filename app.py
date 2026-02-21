@@ -5,18 +5,23 @@ import plotly.graph_objects as go
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-# ================= PAGE CONFIG =================
+# ==============================
+# PAGE CONFIG
+# ==============================
 st.set_page_config(
     page_title="Restaurant Financial Intelligence",
-    page_icon="📊",
     layout="wide"
 )
 
-# ================= LOAD DATA =================
+# ==============================
+# LOAD DATA
+# ==============================
 df = pd.read_csv("final_complete_restaurant_dataset.csv")
 df["Date"] = pd.to_datetime(df["Date"])
 
-# ================= GLOBAL STYLING =================
+# ==============================
+# GLOBAL STYLING (ELITE UI)
+# ==============================
 st.markdown("""
 <style>
 .stApp {
@@ -31,6 +36,14 @@ st.markdown("""
     margin-top: 1rem;
 }
 
+.kpi-card {
+    background: linear-gradient(135deg, #161A23, #1F2633);
+    padding: 25px;
+    border-radius: 15px;
+    border: 1px solid #2A2F3A;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
 .section-card {
     background-color: #161A23;
     padding: 20px;
@@ -38,17 +51,40 @@ st.markdown("""
     border: 1px solid #2A2F3A;
     margin-top: 20px;
 }
-
-.kpi-card {
-    background-color: #161A23;
-    padding: 25px;
-    border-radius: 15px;
-    border: 1px solid #2A2F3A;
-}
 </style>
 """, unsafe_allow_html=True)
 
-# ================= HEADER =================
+# ==============================
+# HELPER FUNCTIONS
+# ==============================
+
+def calculate_risk_index(data):
+    revenue_vol = data["Revenue_Generated"].std()
+    margin_vol = data["Net_Profit_Margin_%"].std()
+    expense_growth = data["Expense_Allocated"].pct_change().mean()
+
+    score = 100 - (revenue_vol * 0.01 + margin_vol * 2 + expense_growth * 50)
+    score = max(0, min(100, score))
+    return round(score, 2)
+
+def detect_anomalies(daily):
+    mean = daily["Revenue_Generated"].mean()
+    std = daily["Revenue_Generated"].std()
+    daily["Z"] = (daily["Revenue_Generated"] - mean) / std
+    anomalies = daily[abs(daily["Z"]) > 2]
+    return anomalies
+
+def abc_classification(data):
+    data = data.sort_values(by="Revenue_Generated", ascending=False)
+    data["Cum%"] = data["Revenue_Generated"].cumsum() / data["Revenue_Generated"].sum() * 100
+    data["Class"] = data["Cum%"].apply(
+        lambda x: "A" if x <= 70 else ("B" if x <= 90 else "C")
+    )
+    return data
+
+# ==============================
+# HEADER
+# ==============================
 st.markdown("## 📊 Restaurant Financial Intelligence Platform")
 
 page = st.radio(
@@ -63,7 +99,9 @@ page = st.radio(
 
 st.divider()
 
-# ================= EXECUTIVE OVERVIEW =================
+# ==============================
+# EXECUTIVE OVERVIEW
+# ==============================
 if page == "Executive Overview":
 
     total_revenue = df["Revenue_Generated"].sum()
@@ -81,107 +119,107 @@ if page == "Executive Overview":
         prof_growth = ((monthly.iloc[-1, 1] - monthly.iloc[-2, 1]) /
                        monthly.iloc[-2, 1]) * 100
     else:
-        rev_growth = 0
-        prof_growth = 0
+        rev_growth = prof_growth = 0
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.markdown(f'<div class="kpi-card"><h4>Total Revenue</h4><h2>₹{total_revenue:,.0f}</h2><p>{rev_growth:.2f}% MoM</p></div>', unsafe_allow_html=True)
+    col1.markdown(f'<div class="kpi-card"><h4>Total Revenue</h4><h2>₹{total_revenue:,.0f}</h2></div>', unsafe_allow_html=True)
     col2.markdown(f'<div class="kpi-card"><h4>Total Expense</h4><h2>₹{total_expense:,.0f}</h2></div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="kpi-card"><h4>Net Profit</h4><h2>₹{net_profit:,.0f}</h2><p>{prof_growth:.2f}% MoM</p></div>', unsafe_allow_html=True)
+    col3.markdown(f'<div class="kpi-card"><h4>Net Profit</h4><h2>₹{net_profit:,.0f}</h2></div>', unsafe_allow_html=True)
     col4.markdown(f'<div class="kpi-card"><h4>Avg Margin</h4><h2>{avg_margin:.2f}%</h2></div>', unsafe_allow_html=True)
 
-    # Profitability Gauge
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=avg_margin,
-        title={'text': "Profitability Score"},
-        gauge={'axis': {'range': [0, 100]}}
+    # Risk Index
+    risk_score = calculate_risk_index(df)
+
+    if risk_score > 70:
+        risk_label = "🟢 Low Risk"
+    elif risk_score > 40:
+        risk_label = "🟡 Moderate Risk"
+    else:
+        risk_label = "🔴 High Risk"
+
+    st.markdown(f'<div class="section-card"><h4>Risk Index: {risk_score}/100</h4>{risk_label}</div>', unsafe_allow_html=True)
+
+    # Waterfall Chart
+    fig = go.Figure(go.Waterfall(
+        name="Financial Breakdown",
+        orientation="v",
+        measure=["relative", "relative", "total"],
+        x=["Revenue", "Expense", "Net Profit"],
+        y=[total_revenue, -total_expense, net_profit]
     ))
     fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-    # AI Insight Block
-    revenue_by_product = df.groupby("Product_Name")["Revenue_Generated"].sum()
-    top_product = revenue_by_product.idxmax()
-
+    # AI Insight
     insight = f"""
-    📊 Strategic Insight:
+    📌 Executive Insight:
 
-    • {top_product} is the highest revenue contributor.
-    • Revenue grew {rev_growth:.2f}% month-over-month.
-    • Current margin stands at {avg_margin:.2f}%.
+    Revenue growth stands at {rev_growth:.2f}% MoM.
+    Profit growth at {prof_growth:.2f}%.
+    Current margin: {avg_margin:.2f}%.
+    Risk level: {risk_label}.
     """
-
     st.markdown(f'<div class="section-card">{insight}</div>', unsafe_allow_html=True)
 
-# ================= KPI DASHBOARD =================
+# ==============================
+# KPI DASHBOARD
+# ==============================
 elif page == "KPI Dashboard":
 
     daily = df.groupby("Date")["Revenue_Generated"].sum().reset_index()
     daily["MA_7"] = daily["Revenue_Generated"].rolling(7).mean()
-    daily["Cumulative"] = daily["Revenue_Generated"].cumsum()
 
     fig = px.line(daily, x="Date",
                   y=["Revenue_Generated", "MA_7"],
-                  template="plotly_dark",
-                  title="Revenue Trend & 7-Day Moving Avg")
+                  template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-    fig2 = px.line(daily, x="Date",
-                   y="Cumulative",
-                   template="plotly_dark",
-                   title="Cumulative Revenue")
-    st.plotly_chart(fig2, use_container_width=True)
+    # Anomaly Detection
+    anomalies = detect_anomalies(daily)
+    if not anomalies.empty:
+        st.warning("⚠ Revenue anomalies detected:")
+        st.dataframe(anomalies[["Date", "Revenue_Generated"]])
 
-    # Seasonal Heatmap
-    heatmap_data = df.copy()
-    heatmap_data["Month"] = heatmap_data["Date"].dt.month
-    heatmap_data["Weekday"] = heatmap_data["Date"].dt.day_name()
+    # Calendar Heatmap
+    daily["Day"] = daily["Date"].dt.day
+    daily["Month"] = daily["Date"].dt.month
 
-    pivot = heatmap_data.pivot_table(
+    pivot = daily.pivot_table(
         values="Revenue_Generated",
-        index="Weekday",
-        columns="Month",
+        index="Month",
+        columns="Day",
         aggfunc="sum"
     )
 
-    fig3 = px.imshow(
-        pivot,
-        template="plotly_dark",
-        title="Seasonal Revenue Heatmap (Weekday vs Month)",
-        aspect="auto"
-    )
-    st.plotly_chart(fig3, use_container_width=True)
+    fig2 = px.imshow(pivot, template="plotly_dark",
+                     title="Revenue Calendar Heatmap",
+                     aspect="auto")
+    st.plotly_chart(fig2, use_container_width=True)
 
-# ================= PRODUCT ANALYTICS =================
+# ==============================
+# PRODUCT ANALYTICS
+# ==============================
 elif page == "Product Analytics":
 
     product_summary = df.groupby("Product_Name")[
-        "Revenue_Generated"].sum().reset_index()
+        ["Revenue_Generated", "Net_Profit_After_Expense"]
+    ].sum().reset_index()
 
-    product_summary = product_summary.sort_values(
-        by="Revenue_Generated", ascending=False)
-
-    product_summary["Cum%"] = (
-        product_summary["Revenue_Generated"].cumsum() /
-        product_summary["Revenue_Generated"].sum()) * 100
-
-    product_summary["Class"] = product_summary["Cum%"].apply(
-        lambda x: "A" if x <= 70 else ("B" if x <= 90 else "C")
-    )
+    product_summary = abc_classification(product_summary)
 
     fig = px.bar(product_summary,
                  x="Product_Name",
                  y="Revenue_Generated",
                  color="Class",
-                 template="plotly_dark",
-                 title="Revenue with ABC Classification")
+                 template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(product_summary, use_container_width=True)
+    st.dataframe(product_summary)
 
-# ================= FORECASTING =================
+# ==============================
+# FORECASTING
+# ==============================
 elif page == "Forecasting":
 
     daily = df.groupby("Date")["Revenue_Generated"].sum().reset_index()
@@ -191,8 +229,7 @@ elif page == "Forecasting":
     model.fit(daily[["Date_Ordinal"]],
               daily["Revenue_Generated"])
 
-    future_dates = pd.date_range(
-        daily["Date"].max(), periods=15)[1:]
+    future_dates = pd.date_range(daily["Date"].max(), periods=15)[1:]
     future_ord = future_dates.map(pd.Timestamp.toordinal)
     preds = model.predict(np.array(future_ord).reshape(-1, 1))
 
@@ -221,12 +258,12 @@ elif page == "Forecasting":
         fill="tonexty",
         name="Confidence Interval"
     ))
-    fig.update_layout(template="plotly_dark",
-                      title="Revenue Forecast with Confidence Interval")
-
+    fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-# ================= SCENARIO SIMULATOR =================
+# ==============================
+# SCENARIO SIMULATOR
+# ==============================
 elif page == "Scenario Simulator":
 
     rev = st.slider("Revenue Growth %", 0, 50, 5)
