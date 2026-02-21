@@ -21,14 +21,13 @@ if "theme" not in st.session_state:
     st.session_state.theme = "Dark"
 
 def toggle_theme():
-    if st.session_state.theme == "Dark":
-        st.session_state.theme = "Light"
-    else:
-        st.session_state.theme = "Dark"
+    st.session_state.theme = (
+        "Light" if st.session_state.theme == "Dark" else "Dark"
+    )
 
 # ================= THEME BUTTON =================
-col1, col2 = st.columns([9,1])
-with col2:
+top_col1, top_col2 = st.columns([10, 1])
+with top_col2:
     st.button("🌗", on_click=toggle_theme)
 
 # ================= APPLY THEME =================
@@ -46,20 +45,42 @@ st.markdown(
     <style>
     .stApp {{
         background-color: {background};
-        color: {text_color};
+    }}
+
+    html, body, [class*="css"]  {{
+        color: {text_color} !important;
+    }}
+
+    div[role="radiogroup"] > label {{
+        color: {text_color} !important;
+    }}
+
+    [data-testid="stMetricLabel"] {{
+        color: {text_color} !important;
+    }}
+
+    [data-testid="stMetricValue"] {{
+        color: {text_color} !important;
+    }}
+
+    hr {{
+        border-color: gray;
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# ================= NAVBAR =================
+# ================= HEADER =================
 st.markdown("## 📊 Restaurant Financial Intelligence Platform")
 
 page = st.radio(
     "",
-    ["Executive Overview", "KPI Dashboard", "Product Analytics",
-     "Forecasting", "Scenario Simulator"],
+    ["Executive Overview",
+     "KPI Dashboard",
+     "Product Analytics",
+     "Forecasting",
+     "Scenario Simulator"],
     horizontal=True
 )
 
@@ -85,15 +106,17 @@ if page == "Executive Overview":
     if avg_margin > 45:
         st.success("Business is highly profitable and financially strong.")
     elif avg_margin > 30:
-        st.warning("Margins are stable. Cost optimization can improve profitability.")
+        st.warning("Margins are stable. Cost optimization recommended.")
     else:
-        st.error("Profitability risk detected. Immediate pricing or cost control required.")
+        st.error("Profitability risk detected. Immediate action required.")
 
 # ================= KPI DASHBOARD =================
 elif page == "KPI Dashboard":
 
     monthly = df.groupby(df["Date"].dt.to_period("M"))[
-        ["Revenue_Generated", "Expense_Allocated", "Net_Profit_After_Expense"]
+        ["Revenue_Generated",
+         "Expense_Allocated",
+         "Net_Profit_After_Expense"]
     ].sum().reset_index()
 
     monthly["Date"] = monthly["Date"].astype(str)
@@ -136,6 +159,7 @@ elif page == "Product Analytics":
     ).head(3)
 
     col1, col2 = st.columns(2)
+
     col1.subheader("🏆 Top 3 Products")
     col1.dataframe(top3, use_container_width=True)
 
@@ -180,7 +204,8 @@ elif page == "Forecasting":
 elif page == "Scenario Simulator":
 
     cost_increase = st.slider(
-        "Increase Expenses (%)", 0, 50, 10
+        "Increase Expenses (%)",
+        0, 50, 10
     )
 
     adjusted_expense = df["Expense_Allocated"] * (
@@ -194,9 +219,11 @@ elif page == "Scenario Simulator":
         f"₹{adjusted_profit.sum():,.0f}"
     )
 
-    st.info("Use this tool to simulate cost shocks and test financial resilience.")
+    st.info(
+        "Use this tool to simulate cost shocks and evaluate business resilience."
+    )
 
-# ================= DOWNLOAD REPORT =================
+# ================= DOWNLOAD =================
 st.divider()
 st.download_button(
     "⬇ Download Full Dataset",
