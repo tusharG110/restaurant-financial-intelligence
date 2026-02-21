@@ -8,7 +8,7 @@ from sklearn.linear_model import LinearRegression
 st.set_page_config(page_title="Restaurant Financial Intelligence", layout="wide")
 
 # ---------------- LOAD DATA ----------------
-df = pd.read_csv("/content/final_complete_restaurant_dataset.csv")
+pd.read_csv("final_complete_restaurant_dataset.csv")
 df["Date"] = pd.to_datetime(df["Date"])
 df.dropna(inplace=True)
 
