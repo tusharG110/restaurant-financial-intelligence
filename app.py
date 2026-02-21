@@ -25,46 +25,47 @@ def toggle_theme():
         "Light" if st.session_state.theme == "Dark" else "Dark"
     )
 
-# ================= THEME BUTTON =================
-top_col1, top_col2 = st.columns([10, 1])
-with top_col2:
+# ================= TOP BAR =================
+col_left, col_right = st.columns([10, 1])
+with col_right:
     st.button("🌗", on_click=toggle_theme)
 
-# ================= APPLY THEME =================
+# ================= THEME SETTINGS =================
 if st.session_state.theme == "Dark":
-    background = "#0E1117"
-    text_color = "white"
+    bg_color = "#0E1117"
+    text_color = "#FFFFFF"
     plotly_template = "plotly_dark"
 else:
-    background = "white"
-    text_color = "black"
+    bg_color = "#FFFFFF"
+    text_color = "#000000"
     plotly_template = "plotly"
 
+# Apply clean CSS override
 st.markdown(
     f"""
     <style>
     .stApp {{
-        background-color: {background};
+        background-color: {bg_color};
     }}
 
-    html, body, [class*="css"]  {{
-        color: {text_color} !important;
+    h1, h2, h3, h4, h5, h6 {{
+        color: {text_color};
     }}
 
-    div[role="radiogroup"] > label {{
-        color: {text_color} !important;
+    .stMarkdown, p, span, label {{
+        color: {text_color};
     }}
 
-    [data-testid="stMetricLabel"] {{
-        color: {text_color} !important;
+    div[data-testid="stMetricLabel"] {{
+        color: {text_color};
     }}
 
-    [data-testid="stMetricValue"] {{
-        color: {text_color} !important;
+    div[data-testid="stMetricValue"] {{
+        color: {text_color};
     }}
 
-    hr {{
-        border-color: gray;
+    div[role="radiogroup"] label {{
+        color: {text_color};
     }}
     </style>
     """,
@@ -76,11 +77,13 @@ st.markdown("## 📊 Restaurant Financial Intelligence Platform")
 
 page = st.radio(
     "",
-    ["Executive Overview",
-     "KPI Dashboard",
-     "Product Analytics",
-     "Forecasting",
-     "Scenario Simulator"],
+    [
+        "Executive Overview",
+        "KPI Dashboard",
+        "Product Analytics",
+        "Forecasting",
+        "Scenario Simulator"
+    ],
     horizontal=True
 )
 
@@ -124,9 +127,11 @@ elif page == "KPI Dashboard":
     fig = px.line(
         monthly,
         x="Date",
-        y=["Revenue_Generated",
-           "Expense_Allocated",
-           "Net_Profit_After_Expense"],
+        y=[
+            "Revenue_Generated",
+            "Expense_Allocated",
+            "Net_Profit_After_Expense"
+        ],
         title="Monthly Financial Trend"
     )
 
@@ -151,7 +156,8 @@ elif page == "Product Analytics":
     st.plotly_chart(fig, use_container_width=True)
 
     top3 = product_summary.sort_values(
-        by="Net_Profit_After_Expense", ascending=False
+        by="Net_Profit_After_Expense",
+        ascending=False
     ).head(3)
 
     bottom3 = product_summary.sort_values(
@@ -179,9 +185,9 @@ elif page == "Forecasting":
         daily["Date"].max(), periods=8
     )[1:]
 
-    future_df = pd.DataFrame(
-        {"Date_Ordinal": future_dates.map(pd.Timestamp.toordinal)}
-    )
+    future_df = pd.DataFrame({
+        "Date_Ordinal": future_dates.map(pd.Timestamp.toordinal)
+    })
 
     predictions = model.predict(future_df)
 
@@ -220,11 +226,12 @@ elif page == "Scenario Simulator":
     )
 
     st.info(
-        "Use this tool to simulate cost shocks and evaluate business resilience."
+        "Use this tool to simulate cost changes and evaluate resilience."
     )
 
-# ================= DOWNLOAD =================
+# ================= DOWNLOAD BUTTON =================
 st.divider()
+
 st.download_button(
     "⬇ Download Full Dataset",
     df.to_csv(index=False),
