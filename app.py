@@ -49,6 +49,9 @@ st.divider()
 # ================= EXECUTIVE OVERVIEW =================
 if page=="Executive Overview":
 
+    st.markdown("### 🏢 Overall Financial Summary")
+    st.markdown("High-level performance metrics representing total financial health of the restaurant business.")
+
     total_revenue=df["Revenue_Generated"].sum()
     total_expense=df["Expense_Allocated"].sum()
     net_profit=df["Net_Profit_After_Expense"].sum()
@@ -71,6 +74,9 @@ if page=="Executive Overview":
 
     st.markdown("---")
 
+    st.markdown("### 📊 Profitability Gauge")
+    st.markdown("Visual representation of overall profitability margin score (0–100%).")
+
     fig=go.Figure(go.Indicator(mode="gauge+number",
         value=avg_margin,
         title={'text':"Profitability Score (%)"},
@@ -80,6 +86,9 @@ if page=="Executive Overview":
 
     st.markdown("---")
 
+    st.markdown("### 💰 Financial Breakdown (Waterfall Analysis)")
+    st.markdown("Shows how revenue converts into net profit after deducting expenses.")
+
     fig2=go.Figure(go.Waterfall(
         measure=["relative","relative","total"],
         x=["Revenue","Expense","Net Profit"],
@@ -88,6 +97,9 @@ if page=="Executive Overview":
     st.plotly_chart(fig2,use_container_width=True)
 
     st.markdown("---")
+
+    st.markdown("### ⚠ Business Risk Index")
+    st.markdown("Composite risk score based on revenue volatility, margin variability, and expense growth.")
 
     risk=calculate_risk_index(df)
     risk_label="🟢 Low" if risk>70 else ("🟡 Moderate" if risk>40 else "🔴 High")
@@ -100,15 +112,25 @@ elif page=="KPI Dashboard":
     daily["MA_7"]=daily["Revenue_Generated"].rolling(7).mean()
     daily["Cumulative"]=daily["Revenue_Generated"].cumsum()
 
+    st.markdown("### 📈 Daily Revenue Trend")
+    st.markdown("Displays daily revenue alongside 7-day moving average.")
     fig=px.line(daily,x="Date",y=["Revenue_Generated","MA_7"],template="plotly_dark")
     st.plotly_chart(fig,use_container_width=True)
 
+    st.markdown("---")
+
+    st.markdown("### 📊 Cumulative Revenue Growth")
     fig2=px.line(daily,x="Date",y="Cumulative",template="plotly_dark")
     st.plotly_chart(fig2,use_container_width=True)
 
+    st.markdown("---")
+
+    st.markdown("### 💰 Revenue vs Expense Comparison")
     daily_full=df.groupby("Date")[["Revenue_Generated","Expense_Allocated"]].sum().reset_index()
     fig3=px.line(daily_full,x="Date",y=["Revenue_Generated","Expense_Allocated"],template="plotly_dark")
     st.plotly_chart(fig3,use_container_width=True)
+
+    st.markdown("---")
 
     best=daily.loc[daily["Revenue_Generated"].idxmax()]
     worst=daily.loc[daily["Revenue_Generated"].idxmin()]
@@ -116,27 +138,16 @@ elif page=="KPI Dashboard":
     col1.success(f"🏆 Peak Revenue Day: {best['Date'].date()} (₹{best['Revenue_Generated']:,.0f})")
     col2.error(f"⚠ Worst Revenue Day: {worst['Date'].date()} (₹{worst['Revenue_Generated']:,.0f})")
 
-    anomalies=detect_anomalies(daily)
-    if not anomalies.empty:
-        st.dataframe(anomalies[["Date","Revenue_Generated"]])
-
-    daily["Day"]=daily["Date"].dt.day
-    daily["Month"]=daily["Date"].dt.month
-    pivot=daily.pivot_table(values="Revenue_Generated",index="Month",columns="Day",aggfunc="sum")
-    fig4=px.imshow(pivot,template="plotly_dark",aspect="auto")
-    st.plotly_chart(fig4,use_container_width=True)
-
 # ================= PRODUCT ANALYTICS =================
 elif page=="Product Analytics":
 
+    st.markdown("### 📦 Revenue by Product")
     product = df.groupby("Product_Name")[["Revenue_Generated"]].sum().reset_index()
 
-    # --- Simulated realistic margins ---
     unique_products = product["Product_Name"].unique()
     margin_map = {}
-
     for i, prod in enumerate(unique_products):
-        margin_map[prod] = 30 + (i * 5) % 25  # margins between 30%–55%
+        margin_map[prod] = 30 + (i * 5) % 25
 
     product["Margin_%"] = product["Product_Name"].map(margin_map)
     product["Net_Profit_After_Expense"] = product["Revenue_Generated"] * product["Margin_%"] / 100
@@ -144,12 +155,15 @@ elif page=="Product Analytics":
     fig=px.bar(product,x="Product_Name",y="Revenue_Generated",template="plotly_dark")
     st.plotly_chart(fig,use_container_width=True)
 
-    fig2=px.pie(product,names="Product_Name",values="Revenue_Generated",template="plotly_dark")
-    st.plotly_chart(fig2,use_container_width=True)
+    st.markdown("---")
 
+    st.markdown("### 📈 Profit Margin by Product")
     fig3=px.bar(product,x="Product_Name",y="Margin_%",template="plotly_dark")
     st.plotly_chart(fig3,use_container_width=True)
 
+    st.markdown("---")
+
+    st.markdown("### 🏆 Top & Bottom Performing Products")
     top3=product.sort_values("Net_Profit_After_Expense",ascending=False).head(3)
     bottom3=product.sort_values("Net_Profit_After_Expense").head(3)
     col1,col2=st.columns(2)
@@ -159,6 +173,7 @@ elif page=="Product Analytics":
 # ================= FORECASTING =================
 elif page=="Forecasting":
 
+    st.markdown("### 🔮 Revenue Forecasting")
     daily=df.groupby("Date")["Revenue_Generated"].sum().reset_index()
     daily["Date_Ordinal"]=daily["Date"].map(pd.Timestamp.toordinal)
 
@@ -176,17 +191,17 @@ elif page=="Forecasting":
     lower=preds-1.96*std
 
     fig=go.Figure()
-    fig.add_trace(go.Scatter(x=daily["Date"],y=daily["Revenue_Generated"],name="Actual Revenue"))
+    fig.add_trace(go.Scatter(x=daily["Date"],y=daily["Revenue_Generated"],name="Actual"))
     fig.add_trace(go.Scatter(x=future_dates,y=preds,name="Forecast"))
     fig.add_trace(go.Scatter(x=future_dates,y=upper,line=dict(width=0),showlegend=False))
     fig.add_trace(go.Scatter(x=future_dates,y=lower,fill="tonexty",name="Confidence Interval"))
-
     fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig,use_container_width=True)
 
 # ================= SCENARIO =================
 elif page=="Scenario Simulator":
 
+    st.markdown("### 🧮 Scenario Simulation")
     rev=st.slider("Revenue Growth %",0,50,5)
     exp=st.slider("Expense Growth %",0,50,10)
 
